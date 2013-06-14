@@ -8,7 +8,7 @@ class HarmonicSumDecision():
     frequencies and their harmonics. The target with the highest sum is chosen
     as the attended frequency.
     """
-    def __init__(self, targets, duration, fs, electrodes):
+    def __init__(self, targets, duration, fs, electrodes, filters=None):
         self.targets = targets
         self.target_window = 0.1
         self.fs = fs
@@ -16,6 +16,7 @@ class HarmonicSumDecision():
         self.overflow = 16
         self.buffer = np.zeros((self.nSamples + self.overflow, electrodes))
         self.cursor = 0
+        self.filters = filters
 
         self.fft_params()
 
@@ -58,14 +59,13 @@ class HarmonicSumDecision():
         self.cursor += s
 
         if self.cursor >= self.nSamples:
-            #x = self.buffer[0:self.nSamples, 1:4] - \
-            #    self.buffer[0:self.nSamples, 6].reshape((self.nSamples, 1))
-            #x -= np.mean(x, axis=0)
             x = self.buffer[0:self.nSamples]
-            x = np.abs(np.fft.rfft(self.window * x, n=self.nfft, axis=0))
+            if self.filters is not None:
+                x = self.filters.apply(x)
+            y = np.abs(np.fft.rfft(self.window * x, n=self.nfft, axis=0))
             sums = np.zeros(len(self.targets))
             for i in xrange(len(self.targets)):
-                sums[i] = np.sum(x[self.harmonics[i], :])
+                sums[i] = np.sum(y[self.harmonics[i], :])
             d = np.argmax(sums)
             np.set_printoptions(precision=2)
             print "HSD: %d (%.1f Hz)" % (d+1, self.targets[d]), \
