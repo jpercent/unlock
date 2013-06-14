@@ -20,7 +20,7 @@ class FilterChain(object):
 
         return signal
 
-    def prune(self, signal, *args):
+    def choose(self, signal, *args):
         return signal[:, args]
 
     def bipolar_reference(self, signal, *args):

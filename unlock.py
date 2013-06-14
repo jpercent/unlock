@@ -5,20 +5,21 @@ import multiprocessing as mp
 
 electrodes = 8
 fs = 500
+nTemplates = 4
+nTrials = 5
+time = 25
 
 ## The Data Process
 def data():
     from core import BCI, FilterChain
-    from daq import FunctionDAQ, FileDAQ
-    from decoder.hsd import HarmonicSumDecision
-    from decoder.tm import TemplateMatch
-    import numpy as np
 
-    # templates = np.random.randint(-1000, 1000, (4, electrodes, fs))
-    # samples = np.zeros((electrodes, fs*25))
-    # for i in xrange(4):
-    #     k = i*fs*5
-    #     for j in xrange(5):
+    # import numpy as np
+    #
+    # templates = np.random.randint(-1000, 1000, (nTemplates, electrodes, fs))
+    # samples = np.zeros((electrodes, fs*time))
+    # for i in xrange(nTemplates):
+    #     k = i*fs*nTrials
+    #     for j in xrange(nTrials):
     #         l = k + j*fs
     #         samples[:, l:l+fs] = templates[i,:,:]
     #     samples[:,(20+i)*fs:(20+1+i)*fs] = templates[i,:,:]
@@ -26,7 +27,7 @@ def data():
     # dt = 1.0/fs
     #
     # def sim(t):
-    #     i = int(t/dt)# % fs
+    #     i = int(t/dt)  # % fs
     #     return samples[:, i]
 
     # def sim(t):
@@ -34,20 +35,29 @@ def data():
     #     samples += int(100*np.sin(15*2*np.pi*t))
     #     return samples
 
-    #daq = FunctionDAQ(sim, electrodes, 0, dt=1.0/fs, time=25)
-    daq = FileDAQ("/Users/bgalbraith/Dropbox/School/enobio data/m1_15hz.txt",
-                  8, 500, delimiter='\t')
+
+    # filter chain for enobio ssvep hsd
     chain = FilterChain()
     chain.add_filter(('bipolar_reference', 6))
-    chain.add_filter(('prune', 1, 2, 3))
+    chain.add_filter(('choose', 1, 2, 3))
     chain.add_filter(('zeromean', None))
 
-    tm = TemplateMatch(2, 517, 10, electrodes, filters=chain)
+    # from daq import FunctionDAQ
+    # daq = FunctionDAQ(sim, electrodes, 0, dt=dt, time=time)
 
-    #hsd = HarmonicSumDecision([12.0, 13.0, 14.0, 15.0], 4.0, fs, electrodes,
-    #                          filters=chain)
-    #bci = BCI(daq, decider=hsd)
-    bci = BCI(daq, decider=tm)
+    from daq import FileDAQ
+    daq = FileDAQ("/Users/bgalbraith/Dropbox/School/enobio data/15hz_test.txt",
+                  8, 0, delimiter='\t')
+
+    # from decoder.tm import TemplateMatch
+    # tm = TemplateMatch(nTemplates, fs, nTrials, electrodes, filters=None)
+    # bci = BCI(daq, decider=tm)
+
+    from decoder.hsd import HarmonicSumDecision
+    hsd = HarmonicSumDecision([12.0, 13.0, 14.0, 15.0], 4.0, fs, electrodes,
+                              filters=chain)
+    bci = BCI(daq, decider=hsd)
+
     bci.run()
 
 
