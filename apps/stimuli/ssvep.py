@@ -177,7 +177,7 @@ class SSVEPStimulus():
                  color1=(0,0,0), color2=(255,255,255), filename=None,
                  filename_reverse=None, sequence=(1,0)):
         self.screen = screen
-        self.flick_rate = 0.5/rate
+        self.flick_rate = 1.0/rate
         self.flick_time = 0
 
         self.x_offset = x_offset
@@ -263,7 +263,7 @@ class SSVEPStimulus():
         Allows for the flicker frequency of the stimulus to be changed at
         runtime.
         """
-        self.flick_rate = 0.5 / freq
+        self.flick_rate = 1.0/freq
         self.reset()
 
 
