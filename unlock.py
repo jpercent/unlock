@@ -4,7 +4,7 @@ Launch the decoder and visualizer runtime scripts.
 import multiprocessing as mp
 
 electrodes = 8
-fs = 500
+fs = 256
 nTemplates = 4
 nTrials = 5
 time = 25
@@ -43,20 +43,24 @@ def data():
     chain.add_filter(('zeromean', None))
 
     # from daq import FunctionDAQ
-    # daq = FunctionDAQ(sim, electrodes, 0, dt=dt, time=time)
+    # device = FunctionDAQ(sim, electrodes, 0, dt=dt, time=time)
 
-    from daq import FileDAQ
-    daq = FileDAQ("/Users/bgalbraith/Dropbox/School/enobio data/15hz_test.txt",
-                  8, 0, delimiter='\t')
+    # from daq import FileDAQ
+    # device = FileDAQ("/Users/bgalbraith/Dropbox/School/enobio data/15hz_test.txt",
+    #               8, 0, delimiter='\t')
+
+    from daq import MOBIlabDAQ
+    device = MOBIlabDAQ('COM3', 0xff, time=30)  # time in seconds
+    bci = BCI(device)
 
     # from decoder.tm import TemplateMatch
     # tm = TemplateMatch(nTemplates, fs, nTrials, electrodes, filters=None)
     # bci = BCI(daq, decider=tm)
 
-    from decoder.hsd import HarmonicSumDecision
-    hsd = HarmonicSumDecision([12.0, 13.0, 14.0, 15.0], 4.0, fs, electrodes,
-                              filters=chain)
-    bci = BCI(daq, decider=hsd)
+    # from decoder.hsd import HarmonicSumDecision
+    # hsd = HarmonicSumDecision([12.0, 13.0, 14.0, 15.0], 4.0, fs, electrodes,
+    #                           filters=None)
+    # bci = BCI(device, decider=hsd)
 
     bci.run()
 
@@ -73,9 +77,10 @@ def visual():
     viewport.start()
 
 if __name__ == "__main__":
+    v = mp.Process(target=visual)
     d = mp.Process(target=data)
-    #v = mp.Process(target=visual)
+    v.start()
     d.start()
-    #v.start()
+    v.join()
+
     d.join()
-    #v.join()
