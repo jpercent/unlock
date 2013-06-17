@@ -181,7 +181,7 @@ class TimeScope(UnlockApplication):
             self.pushBuffer(np.random.random(self.numchan))
             return
 
-        if data is None:
+        if data is None or len(data) == 0:
             return
 
         data = [sample for samples in data for sample in samples]
