@@ -4,7 +4,7 @@ Launch the decoder and visualizer runtime scripts.
 import multiprocessing as mp
 
 electrodes = 8
-fs = 256
+fs = 500
 nTemplates = 4
 nTrials = 5
 time = 25
@@ -39,7 +39,7 @@ def data():
     # filter chain for enobio ssvep hsd
     chain = FilterChain()
     chain.add_filter(('bipolar_reference', 6))
-    chain.add_filter(('choose', 1, 2, 3))
+    chain.add_filter(('choose', 0))#1, 2, 3))
     chain.add_filter(('zeromean', None))
 
     # from daq import FunctionDAQ
@@ -49,18 +49,20 @@ def data():
     # device = FileDAQ("/Users/bgalbraith/Dropbox/School/enobio data/15hz_test.txt",
     #               8, 0, delimiter='\t')
 
-    from daq import MOBIlabDAQ
-    device = MOBIlabDAQ('COM3', 0xff, time=30)  # time in seconds
-    bci = BCI(device)
+    # from daq import MOBIlabDAQ
+    # device = MOBIlabDAQ('COM3', 0xff, time=30)  # time in seconds
+
+    from daq import EnobioDAQ
+    device = EnobioDAQ(8, time=30)
 
     # from decoder.tm import TemplateMatch
     # tm = TemplateMatch(nTemplates, fs, nTrials, electrodes, filters=None)
     # bci = BCI(daq, decider=tm)
 
-    # from decoder.hsd import HarmonicSumDecision
-    # hsd = HarmonicSumDecision([12.0, 13.0, 14.0, 15.0], 4.0, fs, electrodes,
-    #                           filters=None)
-    # bci = BCI(device, decider=hsd)
+    from decoder.hsd import HarmonicSumDecision
+    hsd = HarmonicSumDecision([12.0, 13.0, 14.0, 15.0], 4.0, fs, electrodes,
+                              filters=chain)
+    bci = BCI(device, decider=hsd)
 
     bci.run()
 
@@ -68,9 +70,13 @@ def data():
 ## The Visualization Process
 def visual():
     from core import Screen, viewport
-    from apps.diagnostic import TimeScope
+    #from apps.diagnostic import TimeScope
+    from apps.stimuli.ssvep import SSVEP, SSVEPStimulus
     screen = Screen(0, 0, viewport.window.width, viewport.window.height)
-    scope = TimeScope(screen, numchan=electrodes, fs=fs)
+    #scope = TimeScope(screen, numchan=electrodes, fs=fs, duration=2)
+    stimuli = [SSVEPStimulus(screen, 13.0, 'center', x_offset=-200, width=200, height=200, x_freq=2, y_freq=2, filename_reverse=True, color1=(255,0,0),color2=(255,255,0)),
+               SSVEPStimulus(screen, 15.0, 'center', x_offset=200, width=200, height=200, x_freq=2, y_freq=2, filename_reverse=True, color1=(255,0,0),color2=(255,255,0))]
+    scope = SSVEP(screen, stimuli, rest_length=0.0)
     viewport.controller.set_apps([scope])
     #viewport.show_fps = True
     #viewport.window.set_vsync(True)
