@@ -12,13 +12,16 @@ class BCI():
         self.daq = daq
         self.decider = decider
         self.selector = selector
-        self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        self.socket.settimeout(0.001)
+        self.data = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.data.settimeout(0.001)
+        self.trigger = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.trigger.settimeout(0.001)
+        self.trigger.bind(('127.0.0.1', 33448))
         self.logging = False
         if logfile is not None:
             self.logging = True
             self.fh = open("%s_%d.txt" % (logfile, time.time()), 'a')
-            self.buffer = np.zeros((30*daq.frequency, daq.channels+1))
+            self.buffer = np.zeros((30 * daq.frequency, daq.channels + 2))
             self.cursor = 0
 
     def run(self):
@@ -29,16 +32,30 @@ class BCI():
         if not self.daq.start():
             raise Exception('DAQ device did not start streaming')
 
+        # flush any queued trigger signals
+        while True:
+            try:
+                self.trigger.recvfrom(32)
+            except socket.timeout:
+                break
+
         while self.daq.acquire():
             samples = self.daq.getdata()
+            if samples.shape[0] == 0:
+                continue
+            trigger = np.zeros(samples.shape[0])
+            try:
+                trigger[-1], _ = self.trigger.recvfrom(32)
+            except socket.timeout:
+                pass
             if self.logging:
-                self.log(samples)
+                self.log(samples, trigger)
             if self.decider is not None:
                 self.decider.process(samples)
             if self.selector is not None:
                 self.selector.process(samples)
-            self.socket.sendto(json.dumps(samples.flatten().tolist()),
-                               ('127.0.0.1', 33447))
+            self.data.sendto(json.dumps(samples.flatten().tolist()),
+                            ('127.0.0.1', 33447))
 
         if self.logging:
             np.savetxt(self.fh, self.buffer[0:self.cursor, :],
@@ -50,12 +67,13 @@ class BCI():
         if not self.daq.close():
             raise Exception('DAQ device encountered an error closing')
 
-    def log(self, samples):
+    def log(self, samples, trigger):
         s = samples.shape[0]
         if self.cursor + s >= self.buffer.shape[0]:
             np.savetxt(self.fh, self.buffer[0:self.cursor, :],
                        fmt='%d', delimiter='\t')
             self.cursor = 0
-        self.buffer[self.cursor:self.cursor+s, 0:-1] = samples
-        self.buffer[self.cursor:self.cursor+s, -1] = time.time()*1000
+        self.buffer[self.cursor:self.cursor + s, 0:-2] = samples
+        self.buffer[self.cursor:self.cursor + s, -2] = trigger
+        self.buffer[self.cursor:self.cursor + s, -1] = time.time() * 1000
         self.cursor += s
